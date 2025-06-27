@@ -77,6 +77,8 @@ class PlayerTracker:
         self.players = {}
         self.positions = {}
 
+
+    # Getting Color Features by converting from rgb to HSV image
     def get_color_features(self, patch):
         try:
             resized = cv2.resize(patch, (64, 64))
@@ -94,6 +96,8 @@ class PlayerTracker:
         except:
             return np.zeros(94)
 
+    
+    # Getting Features using Deep Learning CNN (Zero - shot)
     def get_deep_features(self, patch):
         try:
             img = cv2.resize(patch, (224, 224))
@@ -105,6 +109,7 @@ class PlayerTracker:
         except:
             return np.zeros(128)
 
+    # Trying to get Jersey Number for a better tracking
     def read_jersey_number(self, patch):
         try:
             gray = cv2.cvtColor(patch, cv2.COLOR_BGR2GRAY)
@@ -112,7 +117,8 @@ class PlayerTracker:
 
             clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
             gray = clahe.apply(gray)
-
+            
+            # Using EasyOCR here
             results = self.ocr.readtext(gray, allowlist='0123456789')
 
             for _, text, conf in results:
@@ -122,9 +128,11 @@ class PlayerTracker:
             pass
         return None, 0.0
 
+    # Gives hypotenius
     def distance(self, p1, p2):
         return math.hypot(p1[0] - p2[0], p1[1] - p2[1])
 
+    # Match Players with the help of Previous Position and features
     def match_player(self, current_features, current_position, assigned_ids):
         best_id = None
         best_score = 0.65
@@ -162,6 +170,7 @@ class PlayerTracker:
 
         return best_id
 
+    # Update the player in dictionary
     def update_player(self, player_id, features, position):
         if player_id not in self.players:
             self.players[player_id] = {'features': features, 'count': 1}
@@ -175,6 +184,7 @@ class PlayerTracker:
 
         self.positions[player_id] = position
 
+    # Drawing a Rectangle around the player
     def draw_player(self, frame, bbox, player_id, jersey, color=(0, 255, 0)):
         x1, y1, x2, y2 = bbox
         cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
@@ -183,6 +193,8 @@ class PlayerTracker:
             label += f" #{jersey}"
         cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
+    
+    # Processing the given frame
     def process(self, frame):
         results = self.yolo(frame)[0]
         assigned_ids = set()
@@ -221,8 +233,8 @@ class PlayerTracker:
 # Main Processing Function
 # ----------------------------
 def main():
-    model_path = "path/to/your/best.pt"
-    video_path = "path/to/your/input_video.mp4"
+    model_path = "./best.pt"
+    video_path = "./15sec_input_720p.mp4"
     output_path = "tracked_players_output.mp4"
 
     print(f"[INFO] Loading YOLO model from: {model_path}")
@@ -235,6 +247,7 @@ def main():
         print("[ERROR] Failed to open the video file.")
         return
 
+    # Capturing specs from the video
     fps = int(cap.get(cv2.CAP_PROP_FPS))
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -243,7 +256,7 @@ def main():
     print(f"[INFO] Resolution: {width}x{height}, FPS: {fps}, Frames: {total_frames}")
 
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+    out = cv2.VideoWriter(output_path, fourcc, fps, (width, height)) # Store the Video frame wise
 
     frame_idx = 0
     while True:
@@ -251,7 +264,7 @@ def main():
         if not ret:
             break
 
-        tracked_frame = tracker.process(frame)
+        tracked_frame = tracker.process(frame) # Will call for the above PlayerTracker Class
         out.write(tracked_frame)
 
         frame_idx += 1
